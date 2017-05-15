@@ -6,8 +6,14 @@ int main(void)
    //分别创建s_sock，c_sock用来接收服务器和客户端的套接字
    int s_sock,c_sock;
  
+   int n;//用来记录epoll_wait有多少个客户端就绪
+   int i; 
+   char buf[1024];//读取数据
+   char str[1024];//存储输出返回的IP地址
+   int num;//读取了多少字符
    //这个是epoll的根节点
    int efd;
+   int sockfd;//用来取出eopll中数组ep的socket
 
    //自定义了8000端口用来做服务器的监听端口
    u_short port=8000;
@@ -39,26 +45,52 @@ int main(void)
    
    //监听端口
    listen(s_sock,128);
-      
+
+   //创建epoll的根节点   
    efd=epoll_creat(1024);
   
+  //添加服务器的socket到epoll的根节点中
    tep.events=EPOLLIN;
    tep.data.fd=s_sock;
+   int res=epoll_ctl(efd,EPOLL_CTL_ADD,s_sock,&tep);
+   
+   while(1)
+  {   
+    //阻塞监听
+     n=epoll_wait(efd,ep,1024,-1)
+    
+    for(i=0;i<n;i++)
+       {
+	//如果是listen监听的fd，代表有新的客户端要来连接了
+	if(ep[i].data.fd==s_sock)	
+           {
+		 connfd=accept(s_sock,(struct sockaddr *)&clientname,&cilentname_len);
+		printf("receiced from %s at PORT %d\n",inet_ntop(AF_INET,&clientname.sin_addr,str,16),port);
+		
+		tep.events=EPOLLIN;
+		tep.data.fd=connfd;
+		res=epoll_ctl(efd,EPOLL_CTL_ADD,connfd,&tep);
+	   }   
+	//如果不是listen监听的fd，那么就是已经连接的客户端的数据
+  	else
+           {
+		sockfd=ep[i].data.fd;
+		num=recv(sockfd,buf,sizeof(buf),0);
+		if(num==0)
+			{
+			   res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
+			   close(sockfd);
+			   printf("client[%d] closed connection\n",i)
+			}						
+		else
+			{
+			  for(j=0;j<n;j++)
+				buf[j]=toupper(buf[j]);
+			  send(sockfd,buf,strlen(buf),0);
+			}
+           }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+       }
 
 
 }
