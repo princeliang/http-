@@ -14,15 +14,19 @@ int main(void)
    //分别创建s_sock，c_sock用来接收服务器和客户端的套接字
    int s_sock,c_sock;
  
-   int n;//用来记录epoll_wait有多少个客户端就绪
+   int n;//用来记录epoll_wait返有多少个客户端就绪
    int i,j; 
-   char buf[1024];//读取数据
+   char buf[1024];//读取数据的内存地址
    char str[16];//存储输出返回的IP地址
-   int num;//读取了多少字符
+   int num;//用来记录recv从客户端读取了多少字符
+
    //这个是epoll的根节点
    int efd;
-   int sockfd;//用来取出eopll中数组ep的socket
-   int connfd;
+
+   int sockfd;//用来存储取出的eopll中数组ep的socket
+
+   int connfd;//用来接收accept返回的套接字（用来保存客户端的信息）
+
    //自定义了8000端口用来做服务器的监听端口
    u_short port=8000;
 
@@ -37,6 +41,7 @@ int main(void)
    struct sockaddr_in clientname;
    struct sockaddr_in servername;
    
+  //初始化两个sockaddr
    bzero(&clientname,sizeof(clientname));
    bzero(&servername,sizeof(servername));
    
