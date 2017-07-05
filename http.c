@@ -1,23 +1,55 @@
-#include <stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
-#include<sys/epoll.h>
-#include<errno.h>
+/*
+ 首先是需要声明的头文件，我们需要重点记住的也就是sys/socket.h
+ */
 
-#define MAXLINE 80
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <strings.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+
+
+/*
+ 现在我们开始写main函数，期间会夹杂着
+ 声明一些我们需要用到的函数，这些函数
+ 不需要一次性写完，可以根据服务器的流程
+ 一个一个来，有什么都可以补充！
+ */
+
+//这是我们用到的第一个函数
+//这个函数将套接字的建立，
+//绑定和监听装在一起了。
+int startup(u_short *port);
+
+
+
 
 int main(void)
 
 {
    //分别创建s_sock，c_sock用来接收服务器和客户端的套接字
    int s_sock,c_sock;
- 
+  
+
+   u_short port=8000;//端口号，默认8000,可以自己修改
+
+
+  //顶义sockaddr来绑定客户端的sockt
+   struct sockaddr_in servername;
+
+//我们调用的第一个自定义函数，startup是用来建立套接字，绑定，监听
+   s_sock = startup(&port);
+
+//昨天调试到49行
+
    int n;//用来记录epoll_wait返有多少个客户端就绪
    int i,j; 
-   char buf[1024];//读取数据的内存地址
-   char str[16];//存储输出返回的IP地址
    int num;//用来记录recv从客户端读取了多少字符
 
    //这个是epoll的根节点
@@ -27,8 +59,6 @@ int main(void)
 
    int connfd;//用来接收accept返回的套接字（用来保存客户端的信息）
 
-   //自定义了8000端口用来做服务器的监听端口
-   u_short port=8000;
 
   //携带的event，类型是epoll_event，ep是数组，tep用来就收临时的客户端
    struct epoll_event tep,ep[1024];
@@ -37,31 +67,9 @@ int main(void)
   //用来接收客户端套接字的大小
    socklen_t clientname_len;
 
-  //分别定义sockaddr来绑定客户端和服务器的sockt
-   struct sockaddr_in clientname;
-   struct sockaddr_in servername;
    
-  //初始化两个sockaddr
-   bzero(&clientname,sizeof(clientname));
-   bzero(&servername,sizeof(servername));
    
-   clientname_len=sizeof(clientname);
 
-   //创建了服务器的套接字
-   s_sock=socket(AF_INET,SOCK_STREAM,0);
-  
-   //用来绑定sever套接字和端口
-   servername.sin_family=AF_INET;
-   servername.sin_port=htons(port);
-   servername.sin_addr.s_addr=htons(INADDR_ANY);
-   
-   //绑定套接字和端口
-   bind(s_sock,(struct sockaddr *) &servername,sizeof(servername));
-   
-   //监听端口
-   listen(s_sock,128);
-
-   //创建epoll的根节点   
    efd=epoll_create(1024);
   
   //添加服务器的socket到epoll的根节点中
@@ -110,5 +118,50 @@ int main(void)
     }
      return 0;
 }
+
+
+
+
+int startup(u_short *port)
+{
+
+int s_sock=0;
+struct sockaddr_in server;
+
+//调用了socket，创建server的套接字
+s_sock=socket(AF_INET,SOCK_STREAM,0);
+
+//在绑定套接字之前，需要对套接字地址
+//进行一些初始化操作
+memset(&server,0,sizeof(server));
+
+//现在对server的套接字地址开始赋值
+//里面的大部分参数很好记忆。不懂得
+//可以去查阅sockaddr_in结构体的组成
+server.sin_family=AF_INET;
+
+//htons将无符号短整型从主机字节序
+//转变成网络字节序。
+server.sin_port=htons(*port);
+server.sin_addr.s_addr=htonl(INADDR_ANY);//表示任何主机都可以和它链接
+
+bind(s_sock,&server,sizeof(server));//绑定
+
+listen(s_sock,1024);//监听
+
+return s_sock;
+
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
